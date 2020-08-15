@@ -262,7 +262,7 @@ static CDVWKInAppBrowser* instance = nil;
 }
 
 - (void)show:(CDVInvokedUrlCommand*)command{
-    [self show:command withNoAnimate:NO];
+    [self show:command withNoAnimate:YES];
 }
 
 - (void)show:(CDVInvokedUrlCommand*)command withNoAnimate:(BOOL)noAnimate
@@ -284,13 +284,14 @@ static CDVWKInAppBrowser* instance = nil;
     if(!initHidden){
         _previousStatusBarStyle = [UIApplication sharedApplication].statusBarStyle;
     }
+    else
+        return;
     
     __block CDVInAppBrowserNavigationController* nav = [[CDVInAppBrowserNavigationController alloc]
                                                         initWithRootViewController:self.inAppBrowserViewController];
     nav.orientationDelegate = self.inAppBrowserViewController;
     nav.navigationBarHidden = YES;
     nav.modalPresentationStyle = self.inAppBrowserViewController.modalPresentationStyle;
-    nav.presentationController.delegate = self.inAppBrowserViewController;
     
     __weak CDVWKInAppBrowser* weakSelf = self;
     
@@ -307,6 +308,7 @@ static CDVWKInAppBrowser* instance = nil;
                 strongSelf->tmpWindow = [[UIWindow alloc] initWithFrame:frame];
             }
             UIViewController *tmpController = [[UIViewController alloc] init];
+
             [strongSelf->tmpWindow setRootViewController:tmpController];
             [strongSelf->tmpWindow setWindowLevel:UIWindowLevelNormal];
 
@@ -320,11 +322,7 @@ static CDVWKInAppBrowser* instance = nil;
 
 - (void)hide:(CDVInvokedUrlCommand*)command
 {
-    // Set tmpWindow to hidden to make main webview responsive to touch again
-    // https://stackoverflow.com/questions/4544489/how-to-remove-a-uiwindow
-    self->tmpWindow.hidden = YES;
-    self->tmpWindow = nil;
-
+    
     if (self.inAppBrowserViewController == nil) {
         NSLog(@"Tried to hide IAB after it was closed.");
         return;
@@ -338,11 +336,25 @@ static CDVWKInAppBrowser* instance = nil;
     
     _previousStatusBarStyle = [UIApplication sharedApplication].statusBarStyle;
     
+    
     // Run later to avoid the "took a long time" log message.
     dispatch_async(dispatch_get_main_queue(), ^{
         if (self.inAppBrowserViewController != nil) {
             _previousStatusBarStyle = -1;
-            [self.inAppBrowserViewController.presentingViewController dismissViewControllerAnimated:YES completion:nil];
+
+            // drawer animation
+            
+            
+            CATransition *transition = [CATransition animation];
+            transition.duration = 0.5f;
+            transition.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+            transition.type = kCATransitionReveal;
+            transition.subtype = kCATransitionFromLeft;
+            [self.inAppBrowserViewController.view.window.layer addAnimation:transition forKey:nil];
+            
+            [self.inAppBrowserViewController.presentingViewController dismissViewControllerAnimated:YES completion:^{
+                self->tmpWindow.hidden = YES;
+                self->tmpWindow = nil;}];
         }
     });
 }
@@ -1070,8 +1082,20 @@ BOOL isExiting = FALSE;
     
     // Run later to avoid the "took a long time" log message.
     dispatch_async(dispatch_get_main_queue(), ^{
+        
+        // drawer animation
+        
+         
+        CATransition *transition = [CATransition animation];
+        transition.duration = 0.5f;
+        transition.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
+        transition.type = kCATransitionReveal;
+        transition.subtype = kCATransitionFromLeft;
+        [weakSelf.view.window.layer addAnimation:transition forKey:nil];
+        
+        
         isExiting = TRUE;
-        lastReducedStatusBarHeight = 0.0;
+	lastReducedStatusBarHeight = 0.0;
         if ([weakSelf respondsToSelector:@selector(presentingViewController)]) {
             [[weakSelf presentingViewController] dismissViewControllerAnimated:YES completion:nil];
         } else {
@@ -1258,10 +1282,5 @@ BOOL isExiting = FALSE;
     [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
 }
 
-#pragma mark UIAdaptivePresentationControllerDelegate
-
-- (void)presentationControllerWillDismiss:(UIPresentationController *)presentationController {
-    isExiting = TRUE;
-}
 
 @end //CDVWKInAppBrowserViewController
