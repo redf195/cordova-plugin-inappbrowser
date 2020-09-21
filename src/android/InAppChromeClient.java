@@ -24,7 +24,9 @@ import org.apache.cordova.PluginResult;
 import org.json.JSONArray;
 import org.json.JSONException;
 
+import android.net.http.SslError;
 import android.webkit.JsPromptResult;
+import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
 import android.webkit.WebStorage;
 import android.webkit.WebView;
@@ -134,5 +136,6 @@ public class InAppChromeClient extends WebChromeClient {
         }
         return false;
     }
+
 
 }

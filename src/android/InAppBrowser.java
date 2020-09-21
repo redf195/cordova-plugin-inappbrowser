@@ -105,9 +105,12 @@ public class InAppBrowser extends CordovaPlugin {
     private static final String CLEAR_ALL_CACHE = "clearcache";
     private static final String CLEAR_SESSION_CACHE = "clearsessioncache";
     private static final String HARDWARE_BACK_BUTTON = "hardwareback";
+    private static final String HARDSOFT_BACK_BUTTON = "hardsoftback";
     private static final String MEDIA_PLAYBACK_REQUIRES_USER_ACTION = "mediaPlaybackRequiresUserAction";
     private static final String SHOULD_PAUSE = "shouldPauseOnSuspend";
-    private static final Boolean DEFAULT_HARDWARE_BACK = true;
+    private static final String DEFAULT_HARDWARE_BACK = "hard";
+    private static final String JS_HARDWARE_BACK = "js";
+    private static final String NO_HARDWARE_BACK = "no";
     private static final String USER_WIDE_VIEW_PORT = "useWideViewPort";
     private static final String TOOLBAR_COLOR = "toolbarcolor";
     private static final String CLOSE_BUTTON_CAPTION = "closebuttoncaption";
@@ -132,7 +135,7 @@ public class InAppBrowser extends CordovaPlugin {
     private boolean openWindowHidden = false;
     private boolean clearAllCache = false;
     private boolean clearSessionCache = false;
-    private boolean hadwareBackButton = true;
+    private String hadwareBackButton = DEFAULT_HARDWARE_BACK;
     private boolean mediaPlaybackRequiresUserGesture = false;
     private boolean shouldPauseInAppBrowser = false;
     private boolean useWideViewPort = true;
@@ -584,7 +587,7 @@ public class InAppBrowser extends CordovaPlugin {
      * Has the user set the hardware back button to go back
      * @return boolean
      */
-    public boolean hardwareBack() {
+    public String hardwareBack() {
         return hadwareBackButton;
     }
 
@@ -661,11 +664,20 @@ public class InAppBrowser extends CordovaPlugin {
                 openWindowHidden = hidden.equals("yes") ? true : false;
             }
             String hardwareBack = features.get(HARDWARE_BACK_BUTTON);
+            LOG.d(LOG_TAG,"hardwareback="+hardwareBack);
             if (hardwareBack != null) {
-                hadwareBackButton = hardwareBack.equals("yes") ? true : false;
+                hadwareBackButton = hardwareBack.equals("yes") ? DEFAULT_HARDWARE_BACK : (hardwareBack.equals("js") ? JS_HARDWARE_BACK:NO_HARDWARE_BACK);
             } else {
                 hadwareBackButton = DEFAULT_HARDWARE_BACK;
+                String hardsoftBack = features.get(HARDSOFT_BACK_BUTTON);
+                LOG.d(LOG_TAG,"hardsoftback="+hardsoftBack);
+                if ((hardsoftBack != null)&&( hardsoftBack.equals("yes"))) {
+                    hadwareBackButton =  JS_HARDWARE_BACK;
+                }
             }
+
+
+
             String mediaPlayback = features.get(MEDIA_PLAYBACK_REQUIRES_USER_ACTION);
             if (mediaPlayback != null) {
                 mediaPlaybackRequiresUserGesture = mediaPlayback.equals("yes") ? true : false;
@@ -990,7 +1002,7 @@ public class InAppBrowser extends CordovaPlugin {
                 settings.setJavaScriptCanOpenWindowsAutomatically(true);
                 settings.setBuiltInZoomControls(showZoomControls);
                 settings.setDisplayZoomControls(false);
-            	settings.setDefaultZoom(ZoomDensity.MEDIUM);
+            	//settings.setDefaultZoom(ZoomDensity.MEDIUM);
             	settings.setSupportZoom(showZoomControls);
 
                 settings.setPluginState(android.webkit.WebSettings.PluginState.ON);
@@ -1159,6 +1171,21 @@ public class InAppBrowser extends CordovaPlugin {
             mUploadCallback = null;
         }
     }
+
+    /* 
+        hardwareback=js 
+        trigger an event when the hardware back button is clicked
+
+    */
+    public void hardsoft_back() {
+
+        if (hadwareBackButton.equals(JS_HARDWARE_BACK))
+            injectDeferredObject("{const e=new Event('hardwareback');document.dispatchEvent(e);}",null);
+        else if ((hadwareBackButton.equals(DEFAULT_HARDWARE_BACK))&&this.canGoBack())
+            this.goBack();
+            
+    }
+
 
     /**
      * The webview client receives notifications about appView
@@ -1473,6 +1500,7 @@ public class InAppBrowser extends CordovaPlugin {
 
         @Override
         public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+
             super.onReceivedSslError(view, handler, error);
             try {
                 JSONObject obj = new JSONObject();
