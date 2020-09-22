@@ -527,7 +527,8 @@ static CDVWKInAppBrowser* instance = nil;
     // TODO comment in when POST requests are handled
     // || ([_beforeload isEqualToString:@"post"] && [httpMethod isEqualToString:@"POST"])
     )){
-        useBeforeLoad = YES;
+        if (![httpMethod isEqualToString:@"POST"])
+            useBeforeLoad = YES;
     }
 
     // When beforeload, on first URL change, initiate JS callback. Only after the beforeload event, continue.
